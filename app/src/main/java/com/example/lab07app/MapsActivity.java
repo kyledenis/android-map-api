@@ -1,13 +1,7 @@
 package com.example.lab07app;
 
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.annotation.NonNull;
-import androidx.core.app.ActivityCompat;
-import androidx.fragment.app.FragmentActivity;
-
+import android.Manifest;
 import android.annotation.SuppressLint;
-
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Location;
@@ -15,47 +9,62 @@ import android.os.Bundle;
 import android.os.Looper;
 import android.util.Log;
 import android.widget.Toast;
-import android.Manifest;
 
-import com.google.android.gms.location.LocationRequest;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
+import androidx.fragment.app.FragmentActivity;
+
+import com.example.lab07app.databinding.ActivityMapsBinding;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
-
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 
 import java.util.ArrayList;
 
-import com.example.lab07app.databinding.ActivityMapsBinding;
-
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
+
+    private static final float SMALLEST_DISPLACEMENT = 0.5F;
 
     //Required permissions array
     final String[] PERMISSIONS = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION};
 
-    private GoogleMap mMap;
-    private ActivityMapsBinding binding;
-
     //Variable for debugging in logcat
     String TAG = "MapAct";
+
+    //Draw on map
+    Polyline line;
+    private GoogleMap mMap;
+    private ActivityMapsBinding binding;
 
     //Location variables
     private FusedLocationProviderClient mFusedLocationClient;
     private LocationCallback locationCallback;
     private LocationRequest mLocationRequest;
-    private ArrayList<LatLng> points;
 
-    //Draw on map
-    Polyline line;
-    private static final float SMALLEST_DISPLACEMENT = 0.5F;
+    //Result launcher for permissions
+    private final ActivityResultLauncher<String[]> multiplePermissionActivityResultLauncher = registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), isGranted -> {
+        Log.d(TAG, "Launcher result: " + isGranted.toString()); //permissions are granted lets get to work!
+        getLastLocation(); //get start location
+        createLocationRequest(); // set up the location tracking
+        if (isGranted.containsValue(false)) {
+            Log.d(TAG, "At least one of the permissions was not granted, please enable permissions to ensure app functionality");
+        }
+    });
+
+    private ArrayList<LatLng> points;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -131,16 +140,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
-    //Result launcher for permissions
-    private final ActivityResultLauncher<String[]> multiplePermissionActivityResultLauncher = registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), isGranted -> {
-        Log.d(TAG, "Launcher result: " + isGranted.toString()); //permissions are granted lets get to work!
-        getLastLocation(); //get start location
-        createLocationRequest(); // set up the location tracking
-        if (isGranted.containsValue(false)) {
-            Log.d(TAG, "At least one of the permissions was not granted, please enable permissions to ensure app functionality");
-        }
-    });
-
     @SuppressLint("MissingPermission")
     private void getLastLocation() {
         mFusedLocationClient.getLastLocation()
@@ -167,6 +166,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .setMinUpdateDistanceMeters(SMALLEST_DISPLACEMENT)
                 .build();
     }
+
     private void redrawLine() {
         mMap.clear(); //clears all overlays
 
@@ -197,6 +197,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             Log.d(TAG, "Setting up location tracking");
             createLocationRequest(); // set up the location tracking
         }
+
+        // Get the current location
+        mFusedLocationClient
+                .getLastLocation().addOnSuccessListener(this, new OnSuccessListener<Location>() {
+                    @Override
+                    public void onSuccess(Location location) {
+                        // Check if the location is not null
+                        if (location != null) {
+                            // Create a LatLng object for the current location
+                            LatLng currentLatLng = new LatLng(location.getLatitude(), location.getLongitude());
+
+                            // Create a marker for the current location
+                            MarkerOptions markerOptions = new MarkerOptions();
+                            markerOptions.position(currentLatLng);
+
+                            // Add the marker to the map
+                            mMap.addMarker(markerOptions);
+                        }
+                    }
+                });
     }
 
     @SuppressLint("MissingPermission")
