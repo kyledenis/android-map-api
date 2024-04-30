@@ -5,6 +5,7 @@ build/
 
 # Local configuration file (sdk path, etc)
 local.properties
+secrets.properties # This file is used to store sensitive information, such as API keys, and should not be checked in to version control.
 
 # Log/OS Files
 *.log
